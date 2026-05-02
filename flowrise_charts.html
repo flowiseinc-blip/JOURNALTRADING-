@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FLOWRISE | Charts</title>
+<style>
+:root {
+  --bg:#1a1a1e; --bg2:#1e1e24; --bg3:#222228; --bg4:#26262e;
+  --border:#1a1a1a; --border2:#222222;
+  --blue:#2962ff; --green:#26a69a; --green2:#00e676;
+  --red:#ef5350; --cyan:#00bcd4; --yellow:#ffd600; --orange:#ff9800;
+  --white:#d1d4dc; --muted:#8890a0; --muted2:#b8bdd0;
+  --mono:'Courier New',monospace; --font:'Segoe UI',system-ui,sans-serif;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;background:var(--bg);color:var(--white);font-family:var(--font);overflow:hidden;}
+
+/* TOPBAR */
+.topbar{
+  background:#1a1a1e;border-bottom:1px solid var(--border2);
+  height:44px;display:flex;align-items:center;padding:0 14px;gap:14px;
+  flex-shrink:0;z-index:600;
+}
+.logo{color:var(--blue);font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:3px;padding-right:14px;border-right:1px solid var(--border2);}
+.logo span{color:var(--cyan);}
+.topbar-label{font-size:10px;color:var(--muted2);letter-spacing:1.5px;text-transform:uppercase;}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.back-btn{
+  font-size:10px;color:var(--muted2);text-decoration:none;font-family:var(--mono);
+  letter-spacing:1px;padding:4px 10px;border:1px solid var(--border2);border-radius:4px;
+  transition:all .15s;background:transparent;
+}
+.back-btn:hover{border-color:var(--cyan);color:var(--cyan);}
+
+/* TF BAR */
+.tf-bar{
+  background:var(--bg2);border-bottom:1px solid var(--border);
+  height:34px;display:flex;align-items:center;padding:0 14px;gap:5px;flex-shrink:0;
+}
+.tf-label{font-size:10px;color:var(--muted);font-family:var(--mono);letter-spacing:1px;margin-right:4px;}
+.tf-btn{
+  padding:2px 9px;font-size:11px;font-weight:700;border-radius:3px;cursor:pointer;
+  background:transparent;border:1px solid var(--border2);color:var(--muted2);
+  transition:all .12s;font-family:var(--mono);
+}
+.tf-btn:hover{border-color:var(--blue);color:var(--blue);}
+.tf-btn.active{background:var(--blue);border-color:var(--blue);color:#fff;}
+.save-indicator{
+  margin-left:auto;font-size:9px;color:var(--muted);font-family:var(--mono);
+  opacity:0;transition:opacity .3s;
+}
+.save-indicator.show{opacity:1;color:var(--green2);}
+
+/* GRID */
+.chart-grid{
+  display:flex;
+  height:calc(100vh - 44px);
+}
+
+/* CHART CELL */
+.chart-cell{background:var(--bg);display:flex;flex-direction:column;position:relative;overflow:hidden;}
+
+/* CHART HEADER */
+.chart-header{
+  background:#1a1a1e;border-bottom:1px solid var(--border);
+  height:30px;flex-shrink:0;display:flex;align-items:center;padding:0 10px;gap:8px;
+  position:relative;z-index:5;
+}
+.pair-select-wrap{position:relative;display:flex;align-items:center;}
+.pair-label{
+  font-size:12px;font-weight:700;color:var(--white);font-family:var(--mono);
+  letter-spacing:1px;cursor:pointer;user-select:none;display:flex;align-items:center;gap:5px;
+}
+.pair-label:hover{color:var(--cyan);}
+.pair-label .arrow{font-size:8px;color:var(--muted2);transition:transform .15s;}
+.pair-select-wrap:hover .arrow{color:var(--cyan);}
+
+/* DROPDOWN */
+.pair-dropdown{
+  position:absolute;top:calc(100% + 4px);left:0;
+  background:#1a1a1e;border:1px solid var(--border2);border-radius:5px;
+  min-width:160px;z-index:999;box-shadow:0 8px 24px rgba(0,0,0,.6);
+  padding:0;display:none;
+}
+.pair-dropdown.open{display:flex;flex-direction:column;}
+
+/* SEARCH BOX inside dropdown */
+.dd-search-wrap{padding:7px 8px 5px;border-bottom:1px solid var(--border2);flex-shrink:0;}
+.dd-search{
+  width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:3px;
+  color:var(--white);font-family:var(--mono);font-size:11px;padding:4px 8px 4px 26px;
+  outline:none;letter-spacing:.5px;
+}
+.dd-search:focus{border-color:var(--blue);}
+.dd-search::placeholder{color:var(--muted);}
+.dd-search-icon{
+  position:absolute;left:15px;top:50%;transform:translateY(-50%);
+  font-size:11px;color:var(--muted);pointer-events:none;
+}
+.dd-search-wrap{position:relative;}
+.dd-scroll{overflow-y:auto;max-height:260px;padding:4px 0;}
+.dd-scroll::-webkit-scrollbar{width:3px;}
+.dd-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+.dd-item.hidden{display:none;}
+.dd-item{
+  padding:5px 12px;font-size:11px;font-family:var(--mono);color:var(--muted2);
+  cursor:pointer;transition:all .1s;letter-spacing:.5px;white-space:nowrap;
+  display:flex;align-items:center;justify-content:space-between;gap:6px;
+}
+.dd-item:hover{background:rgba(41,98,255,.15);color:var(--white);}
+.dd-item.selected{color:var(--cyan);}
+.dd-item .dd-del{
+  font-size:10px;color:var(--muted);opacity:0;transition:opacity .1s;flex-shrink:0;line-height:1;
+  padding:1px 3px;border-radius:2px;
+}
+.dd-item:hover .dd-del{opacity:1;}
+.dd-item .dd-del:hover{color:var(--red);background:rgba(239,83,80,.15);}
+.dd-sep{height:1px;background:var(--border2);margin:3px 0;}
+.dd-group{padding:3px 12px 2px;font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+
+/* ADD PAIR ROW */
+.dd-add-row{padding:5px 8px 6px;border-top:1px solid var(--border2);margin-top:3px;}
+.dd-add-btn{
+  width:100%;padding:4px 8px;font-size:10px;font-family:var(--mono);
+  background:transparent;border:1px dashed var(--border2);border-radius:3px;
+  color:var(--muted2);cursor:pointer;transition:all .12s;letter-spacing:.5px;
+  display:flex;align-items:center;justify-content:center;gap:5px;
+}
+.dd-add-btn:hover{border-color:var(--blue);color:var(--blue);}
+.dd-add-input-wrap{display:none;gap:4px;}
+.dd-add-input-wrap.visible{display:flex;}
+.dd-add-input{
+  flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:3px;
+  color:var(--white);font-family:var(--mono);font-size:11px;padding:3px 7px;
+  outline:none;letter-spacing:.5px;min-width:0;
+}
+.dd-add-input:focus{border-color:var(--blue);}
+.dd-add-input::placeholder{color:var(--muted);}
+.dd-add-confirm{
+  padding:3px 8px;background:var(--blue);border:none;border-radius:3px;
+  color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--mono);
+  white-space:nowrap;transition:opacity .12s;
+}
+.dd-add-confirm:hover{opacity:.85;}
+.dd-add-cancel{
+  padding:3px 6px;background:transparent;border:1px solid var(--border2);border-radius:3px;
+  color:var(--muted2);font-size:11px;cursor:pointer;
+}
+.dd-add-cancel:hover{border-color:var(--red);color:var(--red);}
+
+.chart-body{flex:1;position:relative;}
+.chart-body iframe{width:100%!important;height:100%!important;display:block;}
+
+/* UNDO / REDO BUTTONS */
+.ud-btn{
+  width:24px;height:24px;border-radius:3px;flex-shrink:0;
+  background:transparent;border:1px solid var(--border2);
+  color:var(--muted2);cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:13px;transition:all .12s;
+}
+.ud-btn:hover{border-color:var(--blue);color:var(--blue);background:rgba(41,98,255,.08);}
+.ud-btn:active{opacity:.6;}
+
+/* FS BUTTON — dans le header, toujours cliquable */
+.fs-btn{
+  margin-left:auto;
+  width:24px;height:24px;border-radius:3px;flex-shrink:0;
+  background:transparent;border:1px solid var(--border2);
+  color:var(--muted2);cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:13px;transition:all .12s;
+}
+.fs-btn:hover{border-color:var(--cyan);color:var(--cyan);background:rgba(0,188,212,.08);}
+.fs-btn.active{border-color:var(--cyan);color:var(--cyan);background:rgba(0,188,212,.12);}
+
+.chart-cell.fs-mode{
+  position:fixed!important;inset:0!important;z-index:500!important;
+  display:flex!important;flex-direction:column!important;
+}
+
+/* ── FLOWRISE SIDEBAR NAV ── */
+.fl-sidebar{position:fixed;left:0;top:50px;bottom:0;width:220px;z-index:500;background:rgba(8,8,14,.97);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-right:1px solid #1c1c28;display:flex;flex-direction:column;padding:12px 8px;gap:2px;overflow-y:auto;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1),box-shadow .28s;}
+.fl-sidebar.open{transform:translateX(0);box-shadow:4px 0 32px rgba(0,0,0,.8);}
+.fl-sidebar::-webkit-scrollbar{width:0;}
+.fl-sidebar-logo{display:flex;align-items:center;padding:6px 12px 4px;margin-bottom:4px;font-family:'Courier New',monospace;font-size:13px;font-weight:700;color:#2962ff;letter-spacing:3px;}
+.fl-sidebar-logo span{color:#00bcd4;}
+.fl-side-btn{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:none;background:transparent;color:#6b7280;font-size:12px;font-weight:600;cursor:pointer;transition:all .16s;letter-spacing:.2px;text-align:left;width:100%;font-family:inherit;text-decoration:none;}
+.fl-side-btn svg{flex-shrink:0;opacity:.7;}
+.fl-side-btn:hover{background:rgba(255,255,255,.06);color:#9ca3af;}
+.fl-side-btn.active{background:rgba(41,98,255,.15);color:#e2e5ef;}
+.fl-side-btn.active svg{opacity:1;}
+.fl-side-btn-discord{color:#7289da!important;}
+.fl-side-btn-discord:hover{background:rgba(114,137,218,.12)!important;color:#9da8e8!important;}
+.fl-side-btn-new{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:10px 12px;border-radius:8px;background:#2962ff;border:none;color:#fff;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.4px;transition:all .18s;box-shadow:0 0 18px rgba(41,98,255,.35);font-family:inherit;margin-bottom:4px;}
+.fl-side-btn-new:hover{background:#1a4fff;box-shadow:0 0 26px rgba(41,98,255,.55);}
+.fl-side-divider{height:1px;background:#1c1c28;margin:8px 4px;}
+.fl-sidebar-zone{position:fixed;left:0;top:50px;bottom:0;width:8px;z-index:499;cursor:pointer;}
+.fl-sidebar-backdrop{display:none;position:fixed;inset:0;z-index:498;background:rgba(0,0,0,.45);}
+.fl-sidebar-backdrop.visible{display:block;}
+.fl-hamburger{position:relative;z-index:601;background:transparent;border:1px solid #222232;color:#9ca3af;width:32px;height:32px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .18s;flex-shrink:0;margin-right:6px;}
+.fl-hamburger:hover{border-color:#2962ff;color:#e2e5ef;background:rgba(41,98,255,.08);}
+
+</style>
+</head>
+<body>
+<script>
+window.flToggle = function(){
+  var s = document.getElementById('flSidebar');
+  if(!s){ return; }
+  if(s.classList.contains('open')){ flHide(); } else { flShow(); }
+};
+window.flShow = function(){
+  var s = document.getElementById('flSidebar');
+  var b = document.getElementById('flBackdrop');
+  if(s){ s.classList.add('open'); }
+  if(b){ b.style.display='block'; }
+};
+window.flHide = function(){
+  var s = document.getElementById('flSidebar');
+  var b = document.getElementById('flBackdrop');
+  if(s){ s.classList.remove('open'); }
+  if(b){ b.style.display='none'; }
+};
+</script>
+
+<div class="topbar">
+  <button class="fl-hamburger" onclick="flToggle()" title="Menu"><svg width="15" height="15" viewBox="0 0 15 12" fill="none"><rect x="0" y="0" width="15" height="1.8" rx=".9" fill="currentColor"/><rect x="0" y="5.1" width="15" height="1.8" rx=".9" fill="currentColor"/><rect x="0" y="10.2" width="15" height="1.8" rx=".9" fill="currentColor"/></svg></button>
+  <div class="logo">FLOW<span>RISE</span></div>
+  <span class="topbar-label">Charts</span>
+</div>
+
+<span id="saveInd" style="display:none"></span>
+
+<div class="chart-grid" id="chartGrid">
+  <div class="chart-cell" id="cell0" style="flex:1;">
+    <div class="chart-header" id="hdr0"></div>
+    <div class="chart-body" id="body0"></div>
+  </div>
+</div>
+
+<script>
+// ─── PAIRS LIST ──────────────────────────────────────────────────────────────
+const PAIRS = [
+  { g:'USD' },
+  { symbol:'FX:EURUSD',  label:'EUR/USD' },
+  { symbol:'FX:GBPUSD',  label:'GBP/USD' },
+  { symbol:'FX:AUDUSD',  label:'AUD/USD' },
+  { symbol:'FX:NZDUSD',  label:'NZD/USD' },
+  { symbol:'FX:USDCAD',  label:'USD/CAD' },
+  { symbol:'FX:USDCHF',  label:'USD/CHF' },
+  { symbol:'FX:USDJPY',  label:'USD/JPY' },
+  { g:'EUR' },
+  { symbol:'FX:EURUSD',  label:'EUR/USD' },
+  { symbol:'FX:EURJPY',  label:'EUR/JPY' },
+  { symbol:'FX:EURCAD',  label:'EUR/CAD' },
+  { symbol:'FX:EURAUD',  label:'EUR/AUD' },
+  { symbol:'FX:EURCHF',  label:'EUR/CHF' },
+  { symbol:'FX:EURGBP',  label:'EUR/GBP' },
+  { symbol:'FX:EURNZD',  label:'EUR/NZD' },
+  { g:'GBP' },
+  { symbol:'FX:GBPUSD',  label:'GBP/USD' },
+  { symbol:'FX:GBPJPY',  label:'GBP/JPY' },
+  { symbol:'FX:GBPCAD',  label:'GBP/CAD' },
+  { symbol:'FX:GBPAUD',  label:'GBP/AUD' },
+  { symbol:'FX:GBPNZD',  label:'GBP/NZD' },
+  { symbol:'FX:GBPCHF',  label:'GBP/CHF' },
+  { g:'AUD' },
+  { symbol:'FX:AUDUSD',  label:'AUD/USD' },
+  { symbol:'FX:AUDJPY',  label:'AUD/JPY' },
+  { symbol:'FX:AUDCAD',  label:'AUD/CAD' },
+  { symbol:'FX:AUDCHF',  label:'AUD/CHF' },
+  { symbol:'FX:AUDNZD',  label:'AUD/NZD' },
+  { g:'CAD' },
+  { symbol:'FX:USDCAD',  label:'USD/CAD' },
+  { symbol:'FX:EURCAD',  label:'EUR/CAD' },
+  { symbol:'FX:GBPCAD',  label:'GBP/CAD' },
+  { symbol:'FX:AUDCAD',  label:'AUD/CAD' },
+  { symbol:'FX:CADJPY',  label:'CAD/JPY' },
+  { symbol:'FX:CADCHF',  label:'CAD/CHF' },
+  { symbol:'FX:NZDCAD',  label:'NZD/CAD' },
+  { g:'CHF' },
+  { symbol:'FX:USDCHF',  label:'USD/CHF' },
+  { symbol:'FX:EURCHF',  label:'EUR/CHF' },
+  { symbol:'FX:GBPCHF',  label:'GBP/CHF' },
+  { symbol:'FX:AUDCHF',  label:'AUD/CHF' },
+  { symbol:'FX:CADCHF',  label:'CAD/CHF' },
+  { symbol:'FX:CHFJPY',  label:'CHF/JPY' },
+  { symbol:'FX:NZDCHF',  label:'NZD/CHF' },
+  { g:'NZD' },
+  { symbol:'FX:NZDUSD',  label:'NZD/USD' },
+  { symbol:'FX:NZDCAD',  label:'NZD/CAD' },
+  { symbol:'FX:NZDCHF',  label:'NZD/CHF' },
+  { symbol:'FX:NZDJPY',  label:'NZD/JPY' },
+  { symbol:'FX:AUDNZD',  label:'AUD/NZD' },
+  { symbol:'FX:GBPNZD',  label:'GBP/NZD' },
+  { symbol:'FX:EURNZD',  label:'EUR/NZD' },
+  { g:'Indices' },
+  { symbol:'TVC:DXY',    label:'DXY' },
+  { symbol:'TVC:JXY',    label:'JXY' },
+  { g:'Métaux' },
+  { symbol:'TVC:GOLD',   label:'XAU/USD' },
+  { symbol:'TVC:SILVER', label:'XAG/USD' },
+];
+
+// ─── DEFAULTS ────────────────────────────────────────────────────────────────
+const DEFAULTS = [
+  { symbol:'FX:EURUSD', label:'EUR/USD' },
+];
+const LS_KEY      = 'flowrise_charts_v1';
+const LS_CUSTOM   = 'flowrise_custom_pairs';
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let STATE       = { tf:'D', charts: DEFAULTS.map(d => ({...d})) };
+let CUSTOM      = [];   // user-added pairs [{symbol,label}]
+let fsState     = [false];
+let openDD      = null;
+
+// ─── PERSISTENCE ─────────────────────────────────────────────────────────────
+function saveState() {
+  localStorage.setItem(LS_KEY, JSON.stringify(STATE));
+  const ind = document.getElementById('saveInd');
+  ind.classList.add('show');
+  clearTimeout(ind._t);
+  ind._t = setTimeout(() => ind.classList.remove('show'), 1500);
+}
+
+function saveCustom() {
+  localStorage.setItem(LS_CUSTOM, JSON.stringify(CUSTOM));
+}
+
+function loadState() {
+  try {
+    const s = JSON.parse(localStorage.getItem(LS_KEY));
+    if (s && s.tf && s.charts && s.charts.length >= 1) {
+      STATE.tf = s.tf;
+      STATE.charts[0] = s.charts[0]; // keep only chart 0
+    }
+  } catch(e) {}
+  try {
+    const c = JSON.parse(localStorage.getItem(LS_CUSTOM));
+    if (Array.isArray(c)) CUSTOM = c;
+  } catch(e) {}
+}
+
+// ─── HEADER BUILD ────────────────────────────────────────────────────────────
+function buildHeader(i) {
+  const hdr = document.getElementById('hdr' + i);
+  const cur = STATE.charts[i];
+
+  // Build scroll items: custom pairs first
+  let itemsHTML = '';
+  if (CUSTOM.length) {
+    itemsHTML += `<div class="dd-group" style="padding-top:5px" data-group>Mes paires</div>`;
+    CUSTOM.forEach((p,ci) => {
+      const sel = p.symbol === cur.symbol ? ' selected' : '';
+      itemsHTML += `
+        <div class="dd-item${sel}" data-label="${p.label}" onclick="selectPair(${i},'${p.symbol}','${p.label}')">
+          <span>${p.label}</span>
+          <span class="dd-del" onclick="removeCustomPair(event,${ci})" title="Supprimer">✕</span>
+        </div>`;
+    });
+    itemsHTML += `<div class="dd-sep" data-sep></div>`;
+  }
+
+  PAIRS.forEach(p => {
+    if (p.g) {
+      itemsHTML += `<div class="dd-sep" data-sep></div><div class="dd-group" data-group>${p.g}</div>`;
+    } else {
+      const sel = p.symbol === cur.symbol ? ' selected' : '';
+      itemsHTML += `<div class="dd-item${sel}" data-label="${p.label}" onclick="selectPair(${i},'${p.symbol}','${p.label}')"><span>${p.label}</span></div>`;
+    }
+  });
+
+  // Add pair row
+  const addRow = `
+    <div class="dd-add-row">
+      <button class="dd-add-btn" id="addBtn${i}" onclick="showAddInput(${i})">＋ Ajouter une paire</button>
+      <div class="dd-add-input-wrap" id="addWrap${i}">
+        <input class="dd-add-input" id="addInp${i}" placeholder="ex: EURCAD, XAUUSD…"
+               onkeydown="if(event.key==='Enter')confirmAdd(${i});if(event.key==='Escape')hideAddInput(${i})">
+        <button class="dd-add-confirm" onclick="confirmAdd(${i})">OK</button>
+        <button class="dd-add-cancel" onclick="hideAddInput(${i})">✕</button>
+      </div>
+    </div>`;
+
+  const isFS = fsState[i];
+  hdr.innerHTML = `
+    <div class="pair-select-wrap" id="wrap${i}">
+      <div class="pair-label" onclick="toggleDD(${i})">
+        <span id="pairLbl${i}">${cur.label}</span>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="pair-dropdown" id="dd${i}">
+        <div class="dd-search-wrap">
+          <span class="dd-search-icon">🔍</span>
+          <input class="dd-search" id="ddSearch${i}" placeholder="Rechercher…"
+                 oninput="filterDD(${i},this.value)"
+                 onkeydown="if(event.key==='Escape'){clearSearch(${i});closeAllDD();}event.stopPropagation();"
+                 onclick="event.stopPropagation()">
+        </div>
+        <div class="dd-scroll" id="ddScroll${i}">${itemsHTML}</div>
+        ${addRow}
+      </div>
+    </div>
+    <button class="ud-btn" onclick="chartUndo(${i})" title="Annuler (Ctrl+Z)">↩</button>
+    <button class="ud-btn" onclick="chartRedo(${i})" title="Rétablir (Ctrl+Y)" style="margin-right:4px;">↪</button>
+    <button class="fs-btn${isFS?' active':''}" id="fsBtn${i}" onclick="toggleFS(${i})" title="${isFS?'Quitter plein écran':'Plein écran'}">
+      ${isFS ? '✕' : '⛶'}
+    </button>
+  `;
+}
+
+// ─── ADD / REMOVE CUSTOM PAIRS ────────────────────────────────────────────────
+function showAddInput(i) {
+  document.getElementById('addBtn'+i).style.display  = 'none';
+  document.getElementById('addWrap'+i).classList.add('visible');
+  setTimeout(() => document.getElementById('addInp'+i).focus(), 50);
+}
+
+function hideAddInput(i) {
+  document.getElementById('addWrap'+i).classList.remove('visible');
+  document.getElementById('addBtn'+i).style.display = '';
+  document.getElementById('addInp'+i).value = '';
+}
+
+function confirmAdd(i) {
+  const inp = document.getElementById('addInp'+i);
+  let raw = inp.value.trim().toUpperCase();
+  if (!raw) return;
+
+  // Auto-format: "EURCAD" → "FX:EURCAD", "XAUUSD" → "TVC:GOLD" logic simple
+  let symbol, label;
+  if (raw.includes(':')) {
+    // Already formatted e.g. "FX:EURCAD"
+    symbol = raw;
+    label  = raw.split(':')[1].replace('USD','').replace('USD','') || raw.split(':')[1];
+    // Better: just use the part after :
+    const part = raw.split(':')[1];
+    label = part.length <= 6 ? part.slice(0,3)+'/'+part.slice(3) : part;
+  } else if (raw === 'DXY' || raw === 'JXY' || raw === 'GOLD' || raw === 'SILVER') {
+    symbol = 'TVC:' + raw;
+    label  = raw;
+  } else if (raw.length === 6) {
+    symbol = 'FX:' + raw;
+    label  = raw.slice(0,3) + '/' + raw.slice(3);
+  } else {
+    symbol = 'FX:' + raw;
+    label  = raw;
+  }
+
+  // Check not already in CUSTOM
+  if (CUSTOM.find(p => p.symbol === symbol)) {
+    inp.style.borderColor = 'var(--red)';
+    setTimeout(() => inp.style.borderColor = '', 800);
+    return;
+  }
+
+  CUSTOM.push({ symbol, label });
+  saveCustom();
+  buildHeader(0);
+  const dd = document.getElementById('dd0');
+  if (dd) { dd.classList.add('open'); openDD = 0; }
+}
+
+function removeCustomPair(event, ci) {
+  event.stopPropagation();
+  CUSTOM.splice(ci, 1);
+  saveCustom();
+  buildHeader(0);
+  if (openDD !== null) {
+    const dd = document.getElementById('dd0');
+    if (dd) dd.classList.add('open');
+  }
+}
+
+// ─── SEARCH / FILTER ─────────────────────────────────────────────────────────
+function filterDD(i, q) {
+  const scroll = document.getElementById('ddScroll' + i);
+  if (!scroll) return;
+  const term = q.trim().toUpperCase();
+  const items   = scroll.querySelectorAll('.dd-item');
+  const groups  = scroll.querySelectorAll('[data-group]');
+  const seps    = scroll.querySelectorAll('[data-sep]');
+
+  if (!term) {
+    items.forEach(el => el.classList.remove('hidden'));
+    groups.forEach(el => el.classList.remove('hidden'));
+    seps.forEach(el => el.classList.remove('hidden'));
+    return;
+  }
+
+  // Hide/show items
+  groups.forEach(el => el.classList.add('hidden'));
+  seps.forEach(el => el.classList.add('hidden'));
+  items.forEach(el => {
+    const lbl = (el.dataset.label || '').toUpperCase();
+    el.classList.toggle('hidden', !lbl.includes(term));
+  });
+}
+
+function clearSearch(i) {
+  const inp = document.getElementById('ddSearch' + i);
+  if (inp) { inp.value = ''; filterDD(i, ''); }
+}
+
+// ─── DROPDOWN ────────────────────────────────────────────────────────────────
+function toggleDD(i) {
+  const dd = document.getElementById('dd' + i);
+  const isOpen = dd.classList.contains('open');
+  closeAllDD();
+  if (!isOpen) {
+    dd.classList.add('open');
+    openDD = i;
+    // Auto-focus search
+    setTimeout(() => {
+      const s = document.getElementById('ddSearch' + i);
+      if (s) s.focus();
+    }, 50);
+  }
+}
+
+function closeAllDD() {
+  document.querySelectorAll('.pair-dropdown').forEach(d => d.classList.remove('open'));
+  document.querySelectorAll('.dd-search').forEach(inp => { inp.value = ''; });
+  filterDD(0, '');
+  openDD = null;
+}
+
+function selectPair(i, symbol, label) {
+  STATE.charts[i] = { symbol, label };
+  saveState();
+  buildHeader(i);
+  buildWidget(i);
+  closeAllDD();
+}
+
+// Close dropdowns on outside click
+document.addEventListener('click', e => {
+  if (openDD !== null && !e.target.closest('.pair-select-wrap')) closeAllDD();
+});
+
+// ─── LOAD TV ─────────────────────────────────────────────────────────────────
+function loadTV() {
+  return new Promise(resolve => {
+    if (window.TradingView) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://s3.tradingview.com/tv.js';
+    s.onload = resolve;
+    document.head.appendChild(s);
+  });
+}
+
+// ─── BUILD WIDGET ─────────────────────────────────────────────────────────────
+function buildWidget(i) {
+  const body = document.getElementById('body' + i);
+  body.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.id = 'tv_' + i;
+  wrap.style.cssText = 'width:100%;height:100%;';
+  body.appendChild(wrap);
+
+  new TradingView.widget({
+    container_id: 'tv_' + i,
+    autosize: true,
+    symbol: STATE.charts[i].symbol,
+    interval: STATE.tf,
+    timezone: 'Europe/Paris',
+    theme: 'dark',
+    style: '1',
+    locale: 'fr',
+    toolbar_bg: '#1a1a1e',
+    backgroundColor: '#1a1a1e',
+    gridColor: 'rgba(30,30,30,0.6)',
+    enable_publishing: false,
+    allow_symbol_change: false,
+    hide_top_toolbar: false,
+    hide_legend: true,          // ← pas de description ni variation
+    hide_side_toolbar: false,   // ← outils de dessin visibles
+    withdateranges: false,
+    save_image: false,
+    studies: [],                // ← aucune étude par défaut
+    show_popup_button: false,
+    no_referral_id: true,
+    disabled_features: [
+      'create_volume_indicator_by_default', // ← pas de volume
+      'header_compare',
+      'header_screenshot',
+      'go_to_date',
+    ],
+    enabled_features: [],
+    overrides: {
+      // Bougies
+      'mainSeriesProperties.candleStyle.upColor':           '#26a69a',
+      'mainSeriesProperties.candleStyle.downColor':         '#ef5350',
+      'mainSeriesProperties.candleStyle.borderUpColor':     '#26a69a',
+      'mainSeriesProperties.candleStyle.borderDownColor':   '#ef5350',
+      'mainSeriesProperties.candleStyle.wickUpColor':       '#26a69a',
+      'mainSeriesProperties.candleStyle.wickDownColor':     '#ef5350',
+      // Fond & grille
+      'paneProperties.background':                          '#131722',
+      'paneProperties.backgroundType':                      'solid',
+      'paneProperties.vertGridProperties.color':            'rgba(42,46,57,0.25)',
+      'paneProperties.horzGridProperties.color':            'rgba(42,46,57,0.25)',
+      // Scales
+      'scalesProperties.textColor':                         '#d1d4dc',
+      'scalesProperties.backgroundColor':                   '#131722',
+      'scalesProperties.lineColor':                         '#2a2e39',
+    },
+    studies_overrides: {
+      // Au cas où volume apparaît quand même
+      'volume.volume.color.0':    'rgba(0,0,0,0)',
+      'volume.volume.color.1':    'rgba(0,0,0,0)',
+      'volume.volume ma.visible': false,
+    },
+    loading_screen: { backgroundColor:'#131722', foregroundColor:'#2962ff' },
+  });
+}
+
+// ─── TIMEFRAME ────────────────────────────────────────────────────────────────
+function setTF(btn) {
+  document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  STATE.tf = btn.dataset.tf;
+  saveState();
+  buildWidget(0);
+}
+
+function applyActiveTF() {
+  document.querySelectorAll('.tf-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tf === STATE.tf);
+  });
+}
+
+// ─── FULLSCREEN ───────────────────────────────────────────────────────────────
+function chartUndo(i) {
+  const iframe = document.querySelector('#cell' + i + ' iframe');
+  if (!iframe) return;
+  try {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.document.dispatchEvent(
+      new KeyboardEvent('keydown', {key:'z', code:'KeyZ', ctrlKey:true, bubbles:true})
+    );
+  } catch(e) {
+    // Fallback: focus iframe and send Ctrl+Z via the parent window
+    iframe.focus();
+    document.dispatchEvent(new KeyboardEvent('keydown', {key:'z', code:'KeyZ', ctrlKey:true, bubbles:true}));
+  }
+}
+
+function chartRedo(i) {
+  const iframe = document.querySelector('#cell' + i + ' iframe');
+  if (!iframe) return;
+  try {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.document.dispatchEvent(
+      new KeyboardEvent('keydown', {key:'y', code:'KeyY', ctrlKey:true, bubbles:true})
+    );
+  } catch(e) {
+    iframe.focus();
+    document.dispatchEvent(new KeyboardEvent('keydown', {key:'y', code:'KeyY', ctrlKey:true, bubbles:true}));
+  }
+}
+
+function toggleFS(i) {
+  const cell = document.getElementById('cell0');
+  if (fsState[0]) {
+    cell.classList.remove('fs-mode');
+    fsState[0] = false;
+    buildHeader(0);
+    setTimeout(() => buildWidget(0), 80);
+  } else {
+    cell.classList.add('fs-mode');
+    fsState[0] = true;
+    buildHeader(0);
+    setTimeout(() => buildWidget(0), 80);
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && fsState[0]) toggleFS(0);
+});
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+async function init() {
+  loadState();
+  applyActiveTF();
+  buildHeader(0);
+  await loadTV();
+  buildWidget(0);
+}
+
+init();
+
+// ── Fullscreen persistant entre les pages FLOWRISE ──
+window.addEventListener('load', () => {
+  if (localStorage.getItem('flowrise_fs') === '1') {
+    setTimeout(() => document.documentElement.requestFullscreen().catch(()=>{}), 300);
+  }
+});
+document.addEventListener('fullscreenchange', () => {
+  if (document.fullscreenElement) localStorage.setItem('flowrise_fs', '1');
+  else localStorage.removeItem('flowrise_fs');
+});
+</script>
+<!-- FLOWRISE SIDEBAR -->
+<div class="fl-sidebar-zone" id="flZone"></div>
+<div class="fl-sidebar-backdrop" id="flBackdrop"></div>
+<div class="fl-sidebar" id="flSidebar">
+  <a href="flowrise_macro_dashboard.html" class="fl-side-btn"><svg width="15" height="15" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.2"/><path d="M1 6.5h11M6.5 1c-2 2-2 8 0 10M6.5 1c2 2 2 8 0 10" stroke="currentColor" stroke-width="1.2"/></svg><span>Dashboard</span></a>
+  <div class="fl-side-divider"></div>
+  <a href="flowrise_journal.html" class="fl-side-btn"><svg width="15" height="15" viewBox="0 0 13 13" fill="none"><rect x="1" y="2" width="11" height="10" rx="2" stroke="currentColor" stroke-width="1.2"/><path d="M1 5h11M4 1v2M9 1v2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg><span>Calendrier</span></a>
+  <a href="flowrise_journal.html" class="fl-side-btn"><svg width="15" height="15" viewBox="0 0 13 13" fill="none"><rect x="1" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="1" fill="currentColor"/><rect x="9" y="2" width="3" height="10" rx="1" fill="currentColor"/></svg><span>Tableau de bord</span></a>
+  <a href="flowrise_journal.html" class="fl-side-btn"><svg width="15" height="15" viewBox="0 0 13 13" fill="none"><path d="M2 4h9M2 6.5h6M2 9h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><rect x="1" y="1" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.2"/></svg><span>Historique</span></a>
+  <a href="flowrise_charts.html" class="fl-side-btn active"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>Charts</span></a>
+  <a href="flowrise_journal.html" class="fl-side-btn"><svg width="15" height="15" viewBox="0 0 13 13" fill="none"><path d="M6.5 2L1 5l5.5 3L12 5 6.5 2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M1 5v4M4 6.5v3a3.5 3 0 005 0V6.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg><span>Apprentissage</span></a>
+  <div class="fl-side-divider"></div>
+  <button class="fl-side-btn fl-side-btn-discord" onclick="alert('Configure Discord depuis le Journal.')"><svg width="15" height="15" viewBox="0 0 15 12" fill="none"><path d="M12.3 1A12.5 12.5 0 009.4.3a8.6 8.6 0 00-.4.8 11.5 11.5 0 00-3.5 0A8.6 8.6 0 005.1.3 12.5 12.5 0 002.2 1C.3 3.8-.2 6.5.1 9.1a12.6 12.6 0 003.8 1.9 9.3 9.3 0 00.8-1.3 8.2 8.2 0 01-1.3-.6l.3-.2a9 9 0 007.7 0l.3.2a8.2 8.2 0 01-1.3.6 9.3 9.3 0 00.8 1.3A12.5 12.5 0 0015 9.1C15.3 6 14.5 3.4 12.3 1zM5 7.5c-.8 0-1.4-.7-1.4-1.5S4.2 4.5 5 4.5s1.4.7 1.4 1.5S5.8 7.5 5 7.5zm4.5 0c-.8 0-1.4-.7-1.4-1.5s.6-1.5 1.4-1.5 1.4.7 1.4 1.5-.6 1.5-1.4 1.5z" fill="currentColor"/></svg><span>Discord</span></button>
+</div>
+<script>
+(function(){
+  var _t = null;
+  function sched(){ _t = setTimeout(flHide, 400); }
+  function cancelSched(){ clearTimeout(_t); }
+  document.getElementById('flZone').addEventListener('mouseenter', function(){ cancelSched(); flShow(); });
+  document.getElementById('flSidebar').addEventListener('mouseleave', sched);
+  document.getElementById('flSidebar').addEventListener('mouseenter', cancelSched);
+  document.getElementById('flBackdrop').addEventListener('click', flHide);
+  document.addEventListener('click', function(e){
+    var s = document.getElementById('flSidebar');
+    var btn = document.querySelector('.fl-hamburger');
+    if(s && s.classList.contains('open') && !s.contains(e.target) && e.target !== btn && !btn.contains(e.target)){
+      flHide();
+    }
+  });
+})();
+</script>
+</body>
+</html>
