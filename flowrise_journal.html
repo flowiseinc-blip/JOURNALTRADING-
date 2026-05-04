@@ -3753,7 +3753,7 @@ function openDiscordSettings(){
 
     <div style="font-size:10px;color:#555;margin-bottom:18px;">Dans Discord : <b style="color:#8890a0">Paramètres du salon → Intégrations → Webhooks → Nouveau webhook</b>. Copie l'URL ici.</div>
     <div style="display:flex;justify-content:flex-end;">
-      <button onclick="document.getElementById('discordSettingsOverlay').style.display='none'" style="padding:8px 20px;background:#5865f2;border:none;border-radius:5px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">Fermer</button>
+      <button onclick="autoSaveAndClose()" style="padding:8px 20px;background:#5865f2;border:none;border-radius:5px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">Fermer</button>
     </div>
   </div>`;
   el.style.display='flex';
@@ -3763,6 +3763,23 @@ function openDiscordSettings(){
 function saveDiscordWebhook(){
   document.getElementById('discordSettingsOverlay').style.display='none';
   showDiscordToast('✅ Webhooks enregistrés !', '#26a69a');
+}
+function autoSaveAndClose(){
+  // Si l'URL est remplie mais pas encore ajoutée, on l'ajoute automatiquement
+  const urlEl  = document.getElementById('whUrlInp');
+  const nameEl = document.getElementById('whNameInp');
+  if(urlEl && urlEl.value.trim().startsWith('https://discord.com/api/webhooks/')){
+    const url  = urlEl.value.trim();
+    const name = (nameEl && nameEl.value.trim()) || 'Webhook';
+    const hooks = getWebhooks();
+    const exists = hooks.some(h => h.url === url);
+    if(!exists){
+      hooks.push({ name, url, enabled:true });
+      saveWebhooks(hooks);
+    }
+  }
+  document.getElementById('discordSettingsOverlay').style.display='none';
+  if(getWebhooks().length) showDiscordToast('✅ Webhook sauvegardé !', '#26a69a');
 }
 
 async function sendToDiscord(tradeId){
@@ -3784,12 +3801,14 @@ async function sendToDiscord(tradeId){
     title: `${statusEmoji} ${dirEmoji} ${t.pair} — ${t.status}`,
     description: t.notes||'',
     fields: [
-      { name:'📅 Date',   value: dateLabel,                                   inline: true },
-      { name:'⏰ Heure',  value: t.time||'—',                                  inline: true },
-      { name:'📊 Résultat R', value: t.resultR===null?'—':(t.resultR>=0?'+':'')+t.resultR+'R', inline: true },
-      { name:'💵 P&L $',  value: t.resultUSD!==null?(t.resultUSD>=0?'+':'')+parseFloat(t.resultUSD).toFixed(2)+'$':'—', inline: true },
-      { name:'⚖️ Direction', value: t.direction,                              inline: true },
-      { name:'🎯 Session', value: t.session||'—',                             inline: true },
+      { name:'📅 Date',        value: dateLabel,                                                                        inline: true },
+      { name:'⏰ Heure',       value: t.time||'—',                                                                      inline: true },
+      { name:'⚖️ Direction',   value: t.direction,                                                                      inline: true },
+      { name:'🎯 Entry (PE)',  value: t.entry!=null ? String(t.entry) : '—',                                           inline: true },
+      { name:'🛑 Stop Loss',   value: t.sl!=null   ? String(t.sl)    : '—',                                           inline: true },
+      { name:'🎯 Take Profit', value: t.tp!=null   ? String(t.tp)    : '—',                                           inline: true },
+      { name:'📊 Résultat R',  value: t.resultR===null?'—':(t.resultR>=0?'+':'')+t.resultR+'R',                       inline: true },
+      { name:'💵 P&L $',       value: t.resultUSD!=null?(t.resultUSD>=0?'+':'')+parseFloat(t.resultUSD).toFixed(2)+'$':'—', inline: true },
     ],
     footer: { text: 'FLOWRISE Journal' },
     timestamp: new Date().toISOString()
@@ -3811,31 +3830,41 @@ async function sendToDiscord(tradeId){
   }
 
   // Envoie vers tous les webhooks actifs
+  showDiscordToast('⏳ Envoi en cours…', '#5865f2');
   let sent = 0, errors = 0;
   await Promise.all(hooks.map(async hook => {
     try {
+      let res;
       if(imgBlob){
         const form = new FormData();
         form.append('payload_json', JSON.stringify({ embeds: [embed] }));
         form.append('file', imgBlob, `trade.${imgExt}`);
-        await fetch(hook.url, { method:'POST', body: form });
+        res = await fetch(hook.url, { method:'POST', body: form });
       } else {
-        await fetch(hook.url, {
+        res = await fetch(hook.url, {
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ embeds: [embed] })
         });
       }
-      sent++;
-    } catch(e){ errors++; }
+      if(res.ok || res.status === 204){ sent++; }
+      else {
+        const txt = await res.text().catch(()=>'');
+        console.warn('Discord error', res.status, txt);
+        errors++;
+      }
+    } catch(e){
+      console.warn('Discord fetch error', e);
+      errors++;
+    }
   }));
 
   if(sent > 0 && errors === 0)
-    showDiscordToast(`✅ Envoyé sur ${sent} webhook${sent>1?'s':''}`, '#26a69a');
+    showDiscordToast(`✅ Envoyé sur Discord !`, '#26a69a');
   else if(sent > 0)
-    showDiscordToast(`⚠️ ${sent} ok, ${errors} erreur${errors>1?'s':''}`, '#ff9800');
+    showDiscordToast(`⚠️ ${sent} ok, ${errors} erreur(s)`, '#ff9800');
   else
-    showDiscordToast('❌ Erreur envoi Discord', '#ef5350');
+    showDiscordToast('❌ Échec — Vérifie l\'URL webhook', '#ef5350');
 }
 
 function showDiscordToast(msg, color){
