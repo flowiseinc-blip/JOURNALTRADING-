@@ -3663,9 +3663,20 @@ document.addEventListener('fullscreenchange', () => {
 // ═══════════════════════════════════════════════════════════
 // ── Multi-webhook helpers ────────────────────────────────────
 function getWebhooks(){
-  try{ return JSON.parse(localStorage.getItem('flowrise_webhooks')||'[]'); }catch(e){ return []; }
+  try{
+    const hooks = JSON.parse(localStorage.getItem('flowrise_webhooks')||'[]');
+    if(hooks.length) return hooks;
+    // Fallback : utilise le webhook configuré dans le Macro Dashboard
+    const fw = localStorage.getItem('fw_wh');
+    if(fw && fw.startsWith('https://discord.com/api/webhooks/')) return [{name:'Discord', url:fw, enabled:true}];
+    return [];
+  }catch(e){ return []; }
 }
-function saveWebhooks(arr){ localStorage.setItem('flowrise_webhooks', JSON.stringify(arr)); }
+function saveWebhooks(arr){
+  localStorage.setItem('flowrise_webhooks', JSON.stringify(arr));
+  // Sync le premier webhook vers la clé du Dashboard aussi
+  if(arr.length) localStorage.setItem('fw_wh', arr[0].url);
+}
 
 function renderWebhookList(){
   const hooks = getWebhooks();
