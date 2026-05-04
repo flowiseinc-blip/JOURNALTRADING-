@@ -775,9 +775,10 @@ window.toggleSidebar = function(){
 
   <div class="side-divider"></div>
 
-  <button class="side-btn side-btn-discord" onclick="openDiscordSettings()">
+  <button class="side-btn side-btn-discord" onclick="openDiscordSettings()" style="position:relative;">
     <svg width="15" height="15" viewBox="0 0 15 12" fill="none"><path d="M12.3 1A12.5 12.5 0 009.4.3a8.6 8.6 0 00-.4.8 11.5 11.5 0 00-3.5 0A8.6 8.6 0 005.1.3 12.5 12.5 0 002.2 1C.3 3.8-.2 6.5.1 9.1a12.6 12.6 0 003.8 1.9 9.3 9.3 0 00.8-1.3 8.2 8.2 0 01-1.3-.6l.3-.2a9 9 0 007.7 0l.3.2a8.2 8.2 0 01-1.3.6 9.3 9.3 0 00.8 1.3A12.5 12.5 0 0015 9.1C15.3 6 14.5 3.4 12.3 1zM5 7.5c-.8 0-1.4-.7-1.4-1.5S4.2 4.5 5 4.5s1.4.7 1.4 1.5S5.8 7.5 5 7.5zm4.5 0c-.8 0-1.4-.7-1.4-1.5s.6-1.5 1.4-1.5 1.4.7 1.4 1.5-.6 1.5-1.4 1.5z" fill="currentColor"/></svg>
     <span data-i18n="nav_discord">Discord</span>
+    <span id="discordSidebarDot" style="display:none;width:7px;height:7px;border-radius:50%;background:#26a69a;margin-left:auto;flex-shrink:0;box-shadow:0 0 6px #26a69a;"></span>
   </button>
 
   <div class="side-divider"></div>
@@ -1320,6 +1321,10 @@ window.toggleSidebar = function(){
   </div>
   <div class="modal-footer">
     <button class="btn-cancel" onclick="closeModal()">Annuler</button>
+    <button id="modalDiscordBtn" onclick="saveAndShareDiscord()" style="display:none;padding:9px 18px;background:rgba(88,101,242,.15);border:1px solid rgba(88,101,242,.5);border-radius:var(--radius-sm);color:#7289da;font-size:13px;font-weight:700;cursor:pointer;align-items:center;gap:7px;transition:all .15s;" onmouseover="this.style.background='rgba(88,101,242,.3)'" onmouseout="this.style.background='rgba(88,101,242,.15)'">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.03.056a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+      Share Discord
+    </button>
     <button class="btn-save" onclick="saveTrade()">💾 Sauvegarder le trade</button>
   </div>
 </div>
@@ -2915,6 +2920,8 @@ function getCurrentEquity(){
 function openModal(prefillDate){
   editId = null;
   mDir = 'LONG'; mStatus = 'OUVERT'; mPlan = null; mScreenshot = [];
+  const discBtn = document.getElementById('modalDiscordBtn');
+  if(discBtn) discBtn.style.display = 'none';
 
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
@@ -2944,6 +2951,8 @@ function editTrade(id){
   const tr = TRADES.find(x=>x.id===id);
   if(!tr) return;
   editId = id;
+  const discBtn = document.getElementById('modalDiscordBtn');
+  if(discBtn) discBtn.style.display = 'flex';
   mDir = tr.direction; mStatus = tr.status; mPlan = tr.planRespect;
   // backward compat: old trades stored screenshot as string
   const raw = tr.screenshot;
@@ -2973,6 +2982,22 @@ function editTrade(id){
 }
 
 function closeModal(){ document.getElementById('modalOverlay').classList.remove('open'); }
+
+async function saveAndShareDiscord(){
+  // Sauvegarde d'abord
+  const date = document.getElementById('mDate').value;
+  const pair = document.getElementById('mPair').value.trim();
+  if(!date || !pair){ alert('Date et paire obligatoires.'); return; }
+  saveTrade();
+  // Attend que le trade soit sauvegardé puis l'envoie
+  if(editId){
+    await sendToDiscord(editId);
+  } else {
+    // Nouveau trade : trouve le dernier ajouté
+    const last = TRADES[TRADES.length - 1];
+    if(last) await sendToDiscord(last.id);
+  }
+}
 
 function saveTrade(){
   const date = document.getElementById('mDate').value;
@@ -3713,11 +3738,38 @@ function addWebhook(){
   renderWebhookList();
 }
 
+function addWebhookAndRefreshStatus(){
+  addWebhook();
+  refreshDiscordSidebarDot();
+  // Met à jour le banner de statut après l'ajout
+  const banner = document.getElementById('whStatusBanner');
+  if(banner && getWebhooks().length > 0){
+    banner.style.background = 'rgba(38,166,154,.1)';
+    banner.style.border = '1px solid rgba(38,166,154,.35)';
+    banner.innerHTML = `<span style="font-size:18px;">✅</span>
+      <div>
+        <div style="font-size:12px;font-weight:700;color:#26a69a;">Connecté — bouton Share Discord actif</div>
+        <div style="font-size:11px;color:#666;margin-top:2px;">Le bouton "Share Discord" dans l'éditeur de trade utilise ce(s) webhook(s).</div>
+      </div>`;
+  }
+}
+
 function removeWebhook(i){
   const hooks = getWebhooks();
   hooks.splice(i,1);
   saveWebhooks(hooks);
   renderWebhookList();
+  refreshDiscordSidebarDot();
+  // Met à jour le banner de statut
+  const banner = document.getElementById('whStatusBanner');
+  if(banner){
+    const connected = getWebhooks().length > 0;
+    banner.style.background = connected ? 'rgba(38,166,154,.1)' : 'rgba(239,83,80,.08)';
+    banner.style.border = connected ? '1px solid rgba(38,166,154,.35)' : '1px solid rgba(239,83,80,.25)';
+    banner.innerHTML = connected
+      ? `<span style="font-size:18px;">✅</span><div><div style="font-size:12px;font-weight:700;color:#26a69a;">Connecté — bouton Share Discord actif</div><div style="font-size:11px;color:#666;margin-top:2px;">Le bouton "Share Discord" dans l'éditeur de trade utilise ce(s) webhook(s).</div></div>`
+      : `<span style="font-size:18px;">⚠️</span><div><div style="font-size:12px;font-weight:700;color:#ef5350;">Aucun webhook — bouton Share inactif</div><div style="font-size:11px;color:#666;margin-top:2px;">Ajoute un webhook ci-dessous pour activer le bouton Share.</div></div>`;
+  }
 }
 
 function toggleWebhook(i, enabled){
@@ -3741,11 +3793,22 @@ function openDiscordSettings(){
     saveWebhooks([{name:'Principal', url:old, enabled:true}]);
     localStorage.removeItem('flowrise_discord_webhook');
   }
+  const existingHooks = getWebhooks();
+  const isConnected = existingHooks.length > 0;
   el.innerHTML = `<div style="background:#111;border:1px solid #222;border-radius:10px;width:min(560px,100%);padding:24px;animation:modalin .2s ease;max-height:90vh;overflow-y:auto;">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="#5865f2"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.03.056a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
       <span style="font-size:16px;font-weight:700;">Discord Webhooks</span>
       <button onclick="document.getElementById('discordSettingsOverlay').style.display='none'" style="margin-left:auto;background:transparent;border:none;color:#8890a0;cursor:pointer;font-size:18px;">✕</button>
+    </div>
+
+    <!-- STATUS BANNER -->
+    <div id="whStatusBanner" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;margin-bottom:18px;background:${isConnected ? 'rgba(38,166,154,.1)' : 'rgba(239,83,80,.08)'};border:1px solid ${isConnected ? 'rgba(38,166,154,.35)' : 'rgba(239,83,80,.25)'};">
+      <span style="font-size:18px;">${isConnected ? '✅' : '⚠️'}</span>
+      <div>
+        <div style="font-size:12px;font-weight:700;color:${isConnected ? '#26a69a' : '#ef5350'};">${isConnected ? 'Connecté — bouton Share Discord actif' : 'Aucun webhook — bouton Share inactif'}</div>
+        <div style="font-size:11px;color:#666;margin-top:2px;">${isConnected ? 'Le bouton "Share Discord" dans l\'éditeur de trade utilise ce(s) webhook(s).' : 'Ajoute un webhook ci-dessous pour activer le bouton Share.'}</div>
+      </div>
     </div>
 
     <div style="font-size:10px;color:#8890a0;letter-spacing:1px;margin-bottom:10px;">WEBHOOKS CONFIGURÉS</div>
@@ -3759,7 +3822,7 @@ function openDiscordSettings(){
     </div>
     <div style="display:flex;gap:8px;margin-bottom:14px;">
       <input id="whUrlInp" type="text" placeholder="https://discord.com/api/webhooks/..." style="flex:1;background:#0a0a0a;border:1px solid #222;border-radius:6px;color:#d1d4dc;padding:9px 12px;font-size:12px;font-family:monospace;outline:none;" onfocus="this.style.borderColor='#5865f2'" onblur="this.style.borderColor='#222'">
-      <button onclick="addWebhook()" style="padding:9px 16px;background:#5865f2;border:none;border-radius:6px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">＋ Ajouter</button>
+      <button onclick="addWebhookAndRefreshStatus()" style="padding:9px 16px;background:#5865f2;border:none;border-radius:6px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">＋ Ajouter</button>
     </div>
 
     <div style="font-size:10px;color:#555;margin-bottom:18px;">Dans Discord : <b style="color:#8890a0">Paramètres du salon → Intégrations → Webhooks → Nouveau webhook</b>. Copie l'URL ici.</div>
@@ -3790,92 +3853,135 @@ function autoSaveAndClose(){
     }
   }
   document.getElementById('discordSettingsOverlay').style.display='none';
+  refreshDiscordSidebarDot();
   if(getWebhooks().length) showDiscordToast('✅ Webhook sauvegardé !', '#26a69a');
 }
 
+// Formate un prix de manière propre (évite NaN / null / undefined)
+function fmtPrice(val){
+  const n = parseFloat(val);
+  if(val === null || val === undefined || val === '' || isNaN(n)) return '—';
+  // Conserve jusqu'à 5 décimales mais supprime les zéros inutiles
+  return n.toFixed(5).replace(/\.?0+$/, '');
+}
+
 async function sendToDiscord(tradeId){
-  const hooks = getWebhooks().filter(h=>h.enabled!==false && h.url);
-  if(!hooks.length){ showDiscordToast('⚠️ Configure au moins un webhook Discord actif', '#ef5350'); return; }
+  // ── 1. Récupère les webhooks actifs ─────────────────────────────
+  const hooks = getWebhooks().filter(h => h.enabled !== false && h.url);
+  if(!hooks.length){
+    showDiscordToast('⚠️ Configure ton webhook Discord dans la sidebar', '#ef5350');
+    return;
+  }
 
-  const t = TRADES.find(x=>x.id===tradeId);
-  if(!t) return;
+  // ── 2. Trouve le trade (IMPORTANT : variable "tr" pour ne pas écraser t() ) ──
+  const tr = TRADES.find(x => x.id === tradeId);
+  if(!tr){ showDiscordToast('❌ Trade introuvable', '#ef5350'); return; }
 
-  const [yr, mo, dy] = t.date.split('-').map(Number);
-  const d = new Date(yr, mo-1, dy);
-  const dateLabel = d.toLocaleDateString(t('lang_locale'),{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  const rColor = t.resultR===null ? 8947848 : t.resultR>=0 ? 38144 : 15683584; // dec colors
-  const statusEmoji = {WIN:'✅',LOSS:'❌',BE:'➖',OUVERT:'🔵'}[t.status]||'📊';
-  const dirEmoji = t.direction==='LONG'?'📈':'📉';
+  // ── 3. Formate les infos du trade ────────────────────────────────
+  const [yr, mo, dy] = tr.date.split('-').map(Number);
+  const dateObj   = new Date(yr, mo - 1, dy);
+  const locale    = t('lang_locale') || 'fr-FR';
+  const dateLabel = dateObj.toLocaleDateString(locale, {
+    weekday:'long', day:'numeric', month:'long', year:'numeric'
+  });
 
+  // Couleur embed : gris=ouvert, vert=WIN/profit, rouge=LOSS/perte
+  let embedColor = 8947848; // gris
+  if(tr.resultR !== null && tr.resultR !== undefined){
+    embedColor = tr.resultR >= 0 ? 2664261 : 15683584; // vert #28a745 | rouge #EF5350
+  } else if(tr.status === 'WIN'){ embedColor = 2664261; }
+  else if(tr.status === 'LOSS'){ embedColor = 15683584; }
+
+  const statusEmoji = { WIN:'✅', LOSS:'❌', BE:'➖', OUVERT:'🔵' }[tr.status] || '📊';
+  const dirEmoji    = tr.direction === 'LONG' ? '📈' : '📉';
+
+  const pnlStr = tr.resultUSD != null
+    ? (tr.resultUSD >= 0 ? '+' : '') + parseFloat(tr.resultUSD).toFixed(2) + ' $'
+    : '—';
+  const rStr = tr.resultR !== null && tr.resultR !== undefined
+    ? (tr.resultR >= 0 ? '+' : '') + tr.resultR + 'R'
+    : '—';
+
+  // ── 4. Construit l'embed Discord ─────────────────────────────────
   const embed = {
-    color: rColor,
-    title: `${statusEmoji} ${dirEmoji} ${t.pair} — ${t.status}`,
-    description: t.notes||'',
+    color: embedColor,
+    title: `${statusEmoji} ${dirEmoji}  ${tr.pair || '—'}  —  ${tr.status || 'OUVERT'}`,
+    description: tr.notes ? tr.notes.slice(0, 500) : '',
     fields: [
-      { name:'📅 Date',        value: dateLabel,                                                                        inline: true },
-      { name:'⏰ Heure',       value: t.time||'—',                                                                      inline: true },
-      { name:'⚖️ Direction',   value: t.direction,                                                                      inline: true },
-      { name:'🎯 Entry (PE)',  value: t.entry!=null ? String(t.entry) : '—',                                           inline: true },
-      { name:'🛑 Stop Loss',   value: t.sl!=null   ? String(t.sl)    : '—',                                           inline: true },
-      { name:'🎯 Take Profit', value: t.tp!=null   ? String(t.tp)    : '—',                                           inline: true },
-      { name:'📊 Résultat R',  value: t.resultR===null?'—':(t.resultR>=0?'+':'')+t.resultR+'R',                       inline: true },
-      { name:'💵 P&L $',       value: t.resultUSD!=null?(t.resultUSD>=0?'+':'')+parseFloat(t.resultUSD).toFixed(2)+'$':'—', inline: true },
+      { name: '📅 Date',         value: dateLabel,                                inline: true },
+      { name: '⏰ Heure',        value: tr.time      || '—',                      inline: true },
+      { name: '🎯 Entry (PE)',   value: fmtPrice(tr.entry), inline: true },
+      { name: '🛑 Stop Loss',    value: fmtPrice(tr.sl),   inline: true },
+      { name: '📊 Résultat R',   value: rStr,                                     inline: true },
+      { name: '💵 P&L $',        value: pnlStr,                                   inline: true },
     ],
-    footer: { text: 'FLOWRISE Journal' },
+    footer:    { text: 'FLOWRISE Journal · ' + new Date().toLocaleDateString(locale) },
     timestamp: new Date().toISOString()
   };
 
-  const shots = Array.isArray(t.screenshot) ? t.screenshot : (t.screenshot ? [t.screenshot] : []);
+  // ── 5. Prépare l'image (screenshot) si présente ──────────────────
+  const shots  = Array.isArray(tr.screenshot) ? tr.screenshot : (tr.screenshot ? [tr.screenshot] : []);
+  let imgBlob  = null;
+  let imgExt   = 'jpg';
 
-  // Prépare le blob image si screenshot présent
-  let imgBlob = null, imgExt = 'jpg';
   if(shots.length > 0){
-    const base64 = shots[0];
-    const mime = base64.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
-    imgExt = mime === 'image/png' ? 'png' : 'jpg';
-    const byteStr = atob(base64.split(',')[1]);
-    const arr = new Uint8Array(byteStr.length);
-    for(let i=0;i<byteStr.length;i++) arr[i] = byteStr.charCodeAt(i);
-    imgBlob = new Blob([arr], {type: mime});
-    embed.image = { url: `attachment://trade.${imgExt}` };
+    try {
+      const base64 = shots[0];
+      const mime   = base64.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+      imgExt       = mime === 'image/png' ? 'png' : 'jpg';
+      const raw    = atob(base64.split(',')[1]);
+      const arr    = new Uint8Array(raw.length);
+      for(let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+      imgBlob      = new Blob([arr], { type: mime });
+      embed.image  = { url: `attachment://trade.${imgExt}` };
+    } catch(e){
+      console.warn('Screenshot encode error', e);
+      imgBlob = null;
+    }
   }
 
-  // Envoie vers tous les webhooks actifs
+  // ── 6. Envoie vers tous les webhooks actifs ──────────────────────
   showDiscordToast('⏳ Envoi en cours…', '#5865f2');
   let sent = 0, errors = 0;
+
   await Promise.all(hooks.map(async hook => {
     try {
       let res;
       if(imgBlob){
+        // Avec image : multipart/form-data
         const form = new FormData();
         form.append('payload_json', JSON.stringify({ embeds: [embed] }));
         form.append('file', imgBlob, `trade.${imgExt}`);
-        res = await fetch(hook.url, { method:'POST', body: form });
+        res = await fetch(hook.url, { method: 'POST', body: form });
       } else {
+        // Sans image : JSON simple
         res = await fetch(hook.url, {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ embeds: [embed] })
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ embeds: [embed] })
         });
       }
-      if(res.ok || res.status === 204){ sent++; }
-      else {
-        const txt = await res.text().catch(()=>'');
-        console.warn('Discord error', res.status, txt);
+
+      if(res.ok || res.status === 204){
+        sent++;
+      } else {
+        const errBody = await res.text().catch(() => '');
+        console.warn(`Discord webhook error [${hook.name}]`, res.status, errBody);
         errors++;
       }
     } catch(e){
-      console.warn('Discord fetch error', e);
+      console.warn(`Discord fetch error [${hook.name}]`, e);
       errors++;
     }
   }));
 
+  // ── 7. Feedback utilisateur ──────────────────────────────────────
   if(sent > 0 && errors === 0)
-    showDiscordToast(`✅ Envoyé sur Discord !`, '#26a69a');
+    showDiscordToast(`✅ Envoyé sur Discord${hooks.length > 1 ? ' ('+sent+' webhooks)' : ''} !`, '#26a69a');
   else if(sent > 0)
     showDiscordToast(`⚠️ ${sent} ok, ${errors} erreur(s)`, '#ff9800');
   else
-    showDiscordToast('❌ Échec — Vérifie l\'URL webhook', '#ef5350');
+    showDiscordToast('❌ Échec — Vérifie l\'URL webhook dans la sidebar', '#ef5350');
 }
 
 function showDiscordToast(msg, color){
@@ -3883,7 +3989,7 @@ function showDiscordToast(msg, color){
   if(!t){
     t = document.createElement('div');
     t.id = 'discordToast';
-    t.style.cssText='position:fixed;bottom:24px;right:24px;padding:10px 18px;border-radius:7px;font-size:13px;font-weight:600;color:#fff;z-index:9999;transition:opacity .4s;pointer-events:none;';
+    t.style.cssText='position:fixed;bottom:90px;right:24px;padding:10px 18px;border-radius:7px;font-size:13px;font-weight:600;color:#fff;z-index:9999;transition:opacity .4s;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.4);';
     document.body.appendChild(t);
   }
   t.style.background = color;
@@ -3893,8 +3999,17 @@ function showDiscordToast(msg, color){
   t._to = setTimeout(()=>{ t.style.opacity='0'; }, 3000);
 }
 
+// ── Met à jour le point vert dans la sidebar Discord ──
+function refreshDiscordSidebarDot(){
+  const dot = document.getElementById('discordSidebarDot');
+  if(dot) dot.style.display = getWebhooks().length > 0 ? 'inline-block' : 'none';
+}
+
 // ── Start ──
 window.addEventListener('load', () => {
+  // Affiche le point vert si webhook déjà configuré
+  refreshDiscordSidebarDot();
+
   // Récupérer les trades depuis les anciennes clés si nécessaire
   const legacyKeys = [
     'flowrise_journal_v2_default_live',
