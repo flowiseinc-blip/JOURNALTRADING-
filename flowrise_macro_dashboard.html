@@ -586,6 +586,7 @@ window.flHide = function(){
   <a href="flowrise_journal.html" class="fl-side-btn"><svg width="15" height="15" viewBox="0 0 13 13" fill="none"><path d="M2 4h9M2 6.5h6M2 9h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><rect x="1" y="1" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.2"/></svg><span data-i18n="nav_history">Historique</span></a>
   <a href="flowrise_charts.html" class="fl-side-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span data-i18n="nav_charts">Charts</span></a>
   <a href="flowrise_journal.html" class="fl-side-btn"><svg width="15" height="15" viewBox="0 0 13 13" fill="none"><path d="M6.5 2L1 5l5.5 3L12 5 6.5 2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M1 5v4M4 6.5v3a3.5 3 0 005 0V6.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg><span data-i18n="nav_learning">Apprentissage</span></a>
+  <a href="flowrise_journal.html#gallery" class="fl-side-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span data-i18n="nav_gallery">Galerie</span></a>
   <div class="fl-side-divider"></div>
   <button class="fl-side-btn fl-side-btn-discord" onclick="alert('Configure Discord depuis le Journal.')"><svg width="15" height="15" viewBox="0 0 15 12" fill="none"><path d="M12.3 1A12.5 12.5 0 009.4.3a8.6 8.6 0 00-.4.8 11.5 11.5 0 00-3.5 0A8.6 8.6 0 005.1.3 12.5 12.5 0 002.2 1C.3 3.8-.2 6.5.1 9.1a12.6 12.6 0 003.8 1.9 9.3 9.3 0 00.8-1.3 8.2 8.2 0 01-1.3-.6l.3-.2a9 9 0 007.7 0l.3.2a8.2 8.2 0 01-1.3.6 9.3 9.3 0 00.8 1.3A12.5 12.5 0 0015 9.1C15.3 6 14.5 3.4 12.3 1zM5 7.5c-.8 0-1.4-.7-1.4-1.5S4.2 4.5 5 4.5s1.4.7 1.4 1.5S5.8 7.5 5 7.5zm4.5 0c-.8 0-1.4-.7-1.4-1.5s.6-1.5 1.4-1.5 1.4.7 1.4 1.5-.6 1.5-1.4 1.5z" fill="currentColor"/></svg><span data-i18n="nav_discord">Discord</span></button>
   <div class="fl-side-divider"></div>
@@ -792,7 +793,7 @@ function applyLang(){
       <!-- CENTRE : globe en haut + clocks en bas -->
       <div class="hero-center">
         <div class="globe-wrap">
-          <canvas id="globeCanvas" style="width:min(500px,calc(100vh - 280px));height:min(500px,calc(100vh - 280px));display:block;"></canvas>
+          <canvas id="globeCanvas" style="width:min(500px,calc(100vh - 280px));height:min(500px,calc(100vh - 280px));display:block;position:relative;z-index:2;"></canvas>
         </div>
         <div class="center-clocks">
           <div class="sess-card" id="sess-asia">
@@ -1822,6 +1823,11 @@ function toggleHeroFullscreen() {
   }
 }
 var _fsUserIntent = false; // true seulement si l'utilisateur a volontairement quitté le plein écran
+var _fsUnloading  = false; // true quand on navigue vers une autre page
+window.addEventListener('beforeunload', () => {
+  _fsUnloading = true;
+  if (document.fullscreenElement) localStorage.setItem('flowrise_fs', '1');
+});
 document.addEventListener('fullscreenchange', () => {
   const btn  = document.getElementById('fs-btn');
   const hBtn = document.getElementById('hero-fs-btn');
@@ -1832,6 +1838,7 @@ document.addEventListener('fullscreenchange', () => {
     localStorage.setItem('flowrise_fs', '1');
     _fsUserIntent = false;
   } else {
+    if (_fsUnloading) return; // navigation — ne pas toucher au flag
     if(!_fsUserIntent){
       // Sortie involontaire — on réclame le plein écran
       setTimeout(() => document.documentElement.requestFullscreen().catch(()=>{}), 80);
@@ -2024,9 +2031,31 @@ function initStars() {
 // Texture Earth (pas de lumières stylisées, MeshBasicMaterial)
 // ═══════════════════════════════════════════════════════════
 function initGlobe() {
-  if (typeof THREE === 'undefined') return;
+  if (typeof THREE === 'undefined') {
+    _showGlobeFallback();
+    return;
+  }
   const canvas = document.getElementById('globeCanvas');
   if (!canvas) return;
+  try { _initGlobeWebGL(canvas); } catch(e) { _showGlobeFallback(); }
+}
+
+function _showGlobeFallback() {
+  const wrap = document.querySelector('.globe-wrap');
+  if (!wrap) return;
+  const size = Math.min(320, window.innerHeight - 280);
+  wrap.innerHTML = `
+    <div style="width:${size}px;height:${size}px;border-radius:50%;
+      background:radial-gradient(circle at 35% 35%, #2a7fd4 0%, #1a4a8c 40%, #0a1e4a 75%, #030d1a 100%);
+      box-shadow:0 0 60px rgba(41,98,255,.35), inset -20px -10px 40px rgba(0,0,0,.6);
+      position:relative;overflow:hidden;animation:globeSpin 30s linear infinite;">
+      <div style="position:absolute;inset:0;border-radius:50%;
+        background:radial-gradient(ellipse 60% 80% at 30% 25%, rgba(255,255,255,.08) 0%, transparent 60%);"></div>
+    </div>
+    <style>@keyframes globeSpin{from{filter:hue-rotate(0deg)}to{filter:hue-rotate(360deg)}}</style>`;
+}
+
+function _initGlobeWebGL(canvas) {
 
   // ── Résolution haute dpi ──────────────────────────────
   const _gSize = Math.min(500, window.innerHeight - 280);
@@ -2040,20 +2069,19 @@ function initGlobe() {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setSize(W, H);
   renderer.setPixelRatio(dpr);
-  renderer.setClearColor(0x000000, 0);
+  renderer.setClearColor(0x000000, 0); // transparent — étoiles visibles derrière le globe
 
   const scene  = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(42, W / H, 0.1, 100);
   camera.position.z = 3.2;
 
-  // ── Lumières : soleil + ambiance nuit ─────────────────
-  // ── Lumières ──────────────────────────────────────────
-  // Ambiance nuit : bleu très sombre (juste assez pour voir les continents)
-  const ambientLight = new THREE.AmbientLight(0x0d1a30, 2.2);
+  // ── Lumières ─────────────────────────────────────────
+  // Ambiance neutre — assez pour voir la face nuit sans teinte bleue
+  const ambientLight = new THREE.AmbientLight(0x404040, 2.5);
   scene.add(ambientLight);
-  // Soleil : décalé sur le côté, intensité modérée
-  const sunLight = new THREE.DirectionalLight(0xfff5e0, 1.5);
-  sunLight.position.set(7, 0.3, 2); // côté droit, légèrement en haut
+  // Soleil principal chaud
+  const sunLight = new THREE.DirectionalLight(0xfff5e0, 1.8);
+  sunLight.position.set(7, 0.3, 2);
   scene.add(sunLight);
 
   // ── Rotation initiale synchronisée UTC ───────────────
@@ -2069,9 +2097,9 @@ function initGlobe() {
   // ── Globe terre ───────────────────────────────────────
   const globeGeo  = new THREE.SphereGeometry(1, 128, 128);
   const globeMat  = new THREE.MeshPhongMaterial({
-    color: 0x1a3a5c,
-    specular: new THREE.Color(0x224466),
-    shininess: 18
+    color: 0x2a5fa8,       // bleu océan visible même sans texture
+    specular: new THREE.Color(0x4488cc),
+    shininess: 25
   });
   const globeMesh = new THREE.Mesh(globeGeo, globeMat);
   globeMesh.rotation.y = earthRotationY();
@@ -2089,28 +2117,28 @@ function initGlobe() {
   cloudMesh.rotation.y = globeMesh.rotation.y + 0.15;
   scene.add(cloudMesh);
 
-  // ── Charger textures ──────────────────────────────────
-  loader.load('https://raw.githubusercontent.com/mrdoob/three.js/r128/examples/textures/planets/earth_atmos_2048.jpg', tex => {
+  // ── Charger textures via jsDelivr (CDN fiable) ────────
+  const BASE = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/';
+  loader.load(BASE + 'earth_atmos_2048.jpg', tex => {
     globeMat.map = tex;
     globeMat.color.setHex(0xffffff);
     globeMat.needsUpdate = true;
-  });
-  loader.load('https://raw.githubusercontent.com/mrdoob/three.js/r128/examples/textures/planets/earth_specular_2048.jpg', tex => {
+  }, undefined, () => { /* silently use fallback color */ });
+  loader.load(BASE + 'earth_specular_2048.jpg', tex => {
     globeMat.specularMap = tex;
     globeMat.shininess = 20;
     globeMat.needsUpdate = true;
-  });
-  // ── Lumières de ville côté nuit (emissiveMap) ─────────
-  loader.load('https://raw.githubusercontent.com/mrdoob/three.js/r128/examples/textures/planets/earth_lights_2048.png', tex => {
+  }, undefined, () => {});
+  loader.load(BASE + 'earth_lights_2048.png', tex => {
     globeMat.emissiveMap       = tex;
-    globeMat.emissive          = new THREE.Color(0xffcc55); // teinte jaune/orangé chaude
+    globeMat.emissive          = new THREE.Color(0xffcc55);
     globeMat.emissiveIntensity = 0.9;
     globeMat.needsUpdate = true;
-  });
-  loader.load('https://raw.githubusercontent.com/mrdoob/three.js/r128/examples/textures/planets/earth_clouds_1024.png', tex => {
+  }, undefined, () => {});
+  loader.load(BASE + 'earth_clouds_1024.png', tex => {
     cloudMat.map = tex;
     cloudMat.needsUpdate = true;
-  });
+  }, undefined, () => {});
 
   // ── Interaction souris ────────────────────────────────
   let isDragging = false, prevX = 0, prevY = 0;

@@ -692,12 +692,18 @@ async function init() {
 init();
 
 // ── Fullscreen persistant entre les pages FLOWRISE ──
+var _fsChartUnloading = false;
+window.addEventListener('beforeunload', () => {
+  _fsChartUnloading = true;
+  if (document.fullscreenElement) localStorage.setItem('flowrise_fs', '1');
+});
 window.addEventListener('load', () => {
   if (localStorage.getItem('flowrise_fs') === '1') {
     setTimeout(() => document.documentElement.requestFullscreen().catch(()=>{}), 300);
   }
 });
 document.addEventListener('fullscreenchange', () => {
+  if (_fsChartUnloading) return;
   if (document.fullscreenElement) localStorage.setItem('flowrise_fs', '1');
   else localStorage.removeItem('flowrise_fs');
 });
